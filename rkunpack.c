@@ -189,6 +189,40 @@ unpack_rkfw(const char *path, uint8_t *buf, uint32_t size)
 	write_image(rpath, &buf[ioff + isize], 32);
 }
 
+static void
+unpack_android(const char *path, uint8_t *buf, uint32_t size)
+{
+	uint32_t pgsz, i, iof_pos, isz_pos, ioff, isize, iload;
+	char rpath[PATH_MAX];
+	char* images[] = { "kernel", "ramdisk", "second" };
+	const int num_images = sizeof(images)/sizeof(images[0]);
+
+	printf("\nunpacking Android images\n");
+
+	pgsz = buf[36] | buf[37] << 8 | buf[38] << 16 | buf[39] << 24;
+
+	ioff = pgsz; /* running page offset */
+	for (i=0; i<num_images; i++) {
+		isz_pos = 8 + 8*i;
+		iof_pos = 12 + 8*i;
+		isize = (((buf[isz_pos] | buf[isz_pos+1] << 8 |
+			   buf[isz_pos+2] << 16 | buf[isz_pos+3] << 24)
+			+ pgsz-1) / pgsz) * pgsz;
+		iload = (((buf[iof_pos] | buf[iof_pos+1] << 8 |
+			   buf[iof_pos+2] << 16 | buf[iof_pos+3] << 24)
+			+ pgsz-1) / pgsz) * pgsz;
+
+		snprintf(rpath, sizeof(rpath), "%s-%s.img", path, images[i]);
+		printf("%08x-%08x/%08x-%08x %s %d bytes\n",
+			iload, iload + isize - 1,
+			ioff, ioff + isize - 1,
+			rpath, isize);
+		write_image(rpath, &buf[ioff], isize);
+
+		ioff += isize;
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -217,6 +251,8 @@ main(int argc, char *argv[])
 		unpack_rkaf(argv[1], buf, size);
 	else if (memcmp(buf, "KRNL", 4) == 0 || memcmp(buf, "PARM", 4) == 0)
 		unpack_krnl(argv[1], buf, size);
+	else if (memcmp(buf, "ANDROID!", 8) == 0)
+		unpack_android(argv[1], buf, size);
 	else
 		errx(EXIT_FAILURE, "invalid signature");
 
