@@ -156,6 +156,7 @@ bulk_init(const char *device)
 
 			if (dev->descriptor.idVendor == 0x2207 &&
 				(dev->descriptor.idProduct == 0x290a ||
+				dev->descriptor.idProduct == 0x292a ||
 				dev->descriptor.idProduct == 0x281a)) {
 				xsv_handle = usb_open(dev);
 				if (verbose) {
